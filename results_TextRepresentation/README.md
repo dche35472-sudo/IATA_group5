@@ -1,14 +1,14 @@
 # Text Representation / Output Format – Main Results
 
-This folder contains the main result files for the **text representation / output format comparison** part of the project.
+This folder contains the main result files for the text representation / output format comparison part of the project.
 
 ## Purpose of this module
 
 The goal of this part is to compare different ways of representing the target sentence in the same image-to-sentence task.
 
-The original baseline uses a **multi-label bag-of-words style output**, where the model predicts whether predefined words appear in the description.
+The original baseline uses a multi-label bag-of-words style output, where the model predicts whether predefined words appear in the description.
 
-The structured model instead uses a **slot-based output format**, where the sentence is decomposed into structured components such as:
+The structured model instead uses a slot-based output format, where the sentence is decomposed into structured components such as:
 
 - anchor size / colour / shape
 - relation 1
@@ -24,26 +24,36 @@ The final recommended model for this part is:
 
 - `slot_structured_cnn_v2.py`
 
-This version gave the most stable test performance among the structured-output variants and is the version that should be used for the main comparison in the report.
+This version gave the most stable test performance among the structured-output variants and is the version recommended for the main comparison in the report.
 
-## What is included here
+## Files in this folder
 
-Typical files in this folder include:
-
-- `v2_metrics.json`  
+- `metrics.json`  
   Main evaluation results for the final recommended structured model.
 
-- `v2_training_history.csv`  
+- `training_history.csv`  
   Training and validation history for the final model.
 
-- `v2_test_predictions.csv`  
+- `test_predictions.csv`  
   Test predictions from the final model.
 
-- `v2_test_rel1_confusion.csv`  
+- `test_rel1_confusion.csv`  
   Confusion results for the first relation slot.
 
-- `v2_test_rel2_confusion.csv`  
+- `test_rel2_confusion.csv`  
   Confusion results for the second relation slot.
+
+- `val_predictions.csv`  
+  Validation predictions for the final model.
+
+- `val_rel1_confusion.csv`  
+  Validation confusion results for the first relation slot.
+
+- `val_rel2_confusion.csv`  
+  Validation confusion results for the second relation slot.
+
+- `best_slot_model_v2.pt`  
+  Saved checkpoint of the final recommended model.
 
 - `baseline_unified_metrics.json`  
   Unified evaluation results for the original baseline under the same evaluation framework.
@@ -64,7 +74,7 @@ For the main report, the recommended comparison is:
 
 The main findings supported by these files are:
 
-- the structured output format allows a better alignment between model targets and sentence structure
+- the structured output format provides a better match to the sentence structure in the dataset
 - a stronger visual encoder improves slot-level and attribute-level prediction
 - relation prediction remains the main bottleneck, especially directional relations
 
