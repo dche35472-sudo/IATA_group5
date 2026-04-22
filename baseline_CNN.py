@@ -7,31 +7,26 @@ from PIL import Image
 import pandas as pd
 import os
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
 
 # ==========================================
 # 1. Vocabulary Definition
 # ==========================================
 VOCAB = ['circle', 'square', 'triangle', 'red', 'blue', 'green', 'yellow', 'black',
-         'above', 'below', 'left', 'right', 'small', 'medium', 'big']
+         'above', 'below', 'left', 'right', 'overlapping', 'small', 'medium', 'big']
 
 
 # ==========================================
-# 2. Advanced Logic-based Sentence Generator
+# 2. Logic-based Sentence Generator
 # ==========================================
 def generate_reciprocal_sentences(tags):
     shapes = [t for t in tags if t in ['circle', 'square', 'triangle']]
     colors = [t for t in tags if t in ['red', 'blue', 'green', 'yellow', 'black']]
     sizes = [t for t in tags if t in ['small', 'medium', 'big']]
-    relations = [t for t in tags if t in ['above', 'below', 'left', 'right']]
+    relations = [t for t in tags if t in ['above', 'below', 'left', 'right', 'overlapping']]
 
     sentences = []
-    # Logic: Only pair if at least two shapes are detected
     if len(shapes) >= 2:
-        # Match attributes to objects (simplistic index-based pairing)
         obj1 = f"{sizes[0] if sizes else ''} {colors[0] if colors else ''} {shapes[0]}".strip()
         obj2 = f"{sizes[1] if len(sizes) > 1 else ''} {colors[1] if len(colors) > 1 else ''} {shapes[1]}".strip()
 
@@ -48,6 +43,9 @@ def generate_reciprocal_sentences(tags):
             elif rel == 'right':
                 sentences.append(f"a {obj1} is right of a {obj2}")
                 sentences.append(f"a {obj2} is left of a {obj1}")
+            elif rel == 'overlapping':
+                sentences.append(f"a {obj1} is overlapping a {obj2}")
+                sentences.append(f"a {obj2} is overlapping a {obj1}")
 
     elif len(shapes) == 1:
         obj = f"{sizes[0] if sizes else ''} {colors[0] if colors else ''} {shapes[0]}".strip()
@@ -83,30 +81,33 @@ class ShapeDataset(Dataset):
 class BaselineCNN(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
+        # Feature Extraction: 4 Convolutional Layers
         self.features = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
             nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
-            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2)
+            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(128, 256, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2)
         )
+        # Classification: 2 Fully Connected Layers
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128 * 8 * 8, 512), nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Linear(256 * 4 * 4, 512), nn.ReLU(),
+            nn.Dropout(0.4),
             nn.Linear(512, num_classes), nn.Sigmoid()
         )
 
-    def forward(self, x): return self.classifier(self.features(x))
+    def forward(self, x):
+        return self.classifier(self.features(x))
 
 
 # ==========================================
-# 4. Training and Evaluation Pipeline
+# 4. Pipeline with Accuracy Calculation
 # ==========================================
 def main():
     if not os.path.exists('labels.csv'):
         print("Error: labels.csv not found.")
         return
 
-    # FULL DATASET LOAD
     df = pd.read_csv('labels.csv')
     train_df, test_df = train_test_split(df, test_size=0.15, random_state=42)
 
@@ -118,75 +119,59 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     train_loader = DataLoader(ShapeDataset(train_df, 'images', transform), batch_size=64, shuffle=True)
-    test_loader = DataLoader(ShapeDataset(test_df, 'images', transform), batch_size=1, shuffle=False)
+    test_loader = DataLoader(ShapeDataset(test_df, 'images', transform), batch_size=64, shuffle=False)
 
     model = BaselineCNN(len(VOCAB)).to(device)
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0005)
 
-    # 1. Training Loop
-    epochs = 15
-    loss_history = []
-    print(f"Training on {len(train_df)} samples using {device}...")
-
-    for epoch in range(epochs):
+    print(f"Starting training on {device}...")
+    for epoch in range(15):
         model.train()
-        epoch_loss = 0
+        running_loss = 0.0
         for imgs, lbls, _, _ in train_loader:
             imgs, lbls = imgs.to(device), lbls.to(device)
             optimizer.zero_grad()
-            loss = criterion(model(imgs), lbls)
+            outputs = model(imgs)
+            loss = criterion(outputs, lbls)
             loss.backward()
             optimizer.step()
-            epoch_loss += loss.item()
+            running_loss += loss.item()
 
-        avg_loss = epoch_loss / len(train_loader)
-        loss_history.append(avg_loss)
-        print(f"Epoch [{epoch + 1}/{epochs}] Loss: {avg_loss:.4f}")
+        print(f"Epoch [{epoch + 1}/15], Loss: {running_loss / len(train_loader):.4f}")
 
-    # 2. Visualizing Training Loss
-    plt.figure()
-    plt.plot(loss_history)
-    plt.title('Final Model Loss Curve')
-    plt.savefig('final_loss_curve.png')
-
-    # 3. Final Inference
+    # Evaluation phase
     model.eval()
-    all_preds, all_labels, results = [], [], []
+    all_results = []
+    correct_samples = 0
+    total_samples = 0
 
-    print("Generating final predictions...")
+    print("Evaluating model...")
     with torch.no_grad():
         for imgs, lbls, fnames, descs in test_loader:
-            imgs = imgs.to(device)
-            raw_out = model(imgs)
-            preds_bin = (raw_out > 0.5).float().cpu()
+            imgs, lbls = imgs.to(device), lbls.to(device)
+            outputs = model(imgs)
+            preds_bin = (outputs > 0.5).float()
 
-            all_preds.append(preds_bin.numpy())
-            all_labels.append(lbls.numpy())
+            # Calculate Exact Match Accuracy (Subset Accuracy)
+            for i in range(imgs.size(0)):
+                total_samples += 1
+                if torch.equal(preds_bin[i], lbls[i]):
+                    correct_samples += 1
 
-            tags = [VOCAB[j] for j, v in enumerate(preds_bin[0]) if v == 1.0]
-            results.append({
-                'file_name': fnames[0],
-                'ground_truth': descs[0],
-                'baseline_output': generate_reciprocal_sentences(tags)
-            })
+                # Collect data for CSV
+                tags = [VOCAB[j] for j, v in enumerate(preds_bin[i]) if v == 1.0]
+                all_results.append({
+                    'file_name': fnames[i],
+                    'ground_truth': descs[i],
+                    'baseline_output': generate_reciprocal_sentences(tags)
+                })
 
-    # 4. Save CSV & Metrics
-    pd.DataFrame(results).to_csv('baseline_final_results.csv', index=False)
+    accuracy = (correct_samples / total_samples) * 100
+    print(f"\nFinal Test Accuracy (Exact Match): {accuracy:.2f}%")
 
-    # 5. Confusion Matrices
-    all_preds = np.vstack(all_preds)
-    all_labels = np.vstack(all_labels)
-    fig, axes = plt.subplots(3, 5, figsize=(20, 12))
-    for i, class_name in enumerate(VOCAB):
-        cm = confusion_matrix(all_labels[:, i], all_preds[:, i])
-        sns.heatmap(cm, annot=True, fmt='d', ax=axes.flatten()[i], cmap='Greens', cbar=False)
-        axes.flatten()[i].set_title(class_name)
-    plt.tight_layout()
-    plt.savefig('final_confusion_matrices.png')
-
-    print(
-        "Full process complete. Output: baseline_final_results.csv, final_loss_curve.png, final_confusion_matrices.png")
+    pd.DataFrame(all_results).to_csv('baseline_overlapping_results.csv', index=False)
+    print("Results saved to baseline_overlapping_results.csv")
 
 
 if __name__ == '__main__':
