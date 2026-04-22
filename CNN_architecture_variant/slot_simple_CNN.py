@@ -15,6 +15,8 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader
 
+
+#same preprocessing as in the slot_structured_CNN_v2 model
 def set_seed(seed: int = 42) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -34,6 +36,7 @@ class SimpleImageTransform:
         arr = np.transpose(arr, (2, 0, 1))
         return torch.tensor(arr, dtype=torch.float32)
 
+# the same 11 slot structured sentence representation format
 SIZES = ["small", "medium", "big"]
 COLORS = ["red", "blue", "green", "yellow", "black"]
 SHAPES = ["circle", "square", "triangle"]
@@ -64,7 +67,6 @@ DESC_PATTERN = re.compile(
     r"is (left of|right of|above|below|overlapping) "
     r"a (small|medium|big) (red|blue|green|yellow|black) (circle|square|triangle)$"
 )
-
 
 def parse_description(description: str) -> Dict[str, str]:
     match = DESC_PATTERN.match(description.strip().lower())
@@ -105,17 +107,14 @@ def parse_description(description: str) -> Dict[str, str]:
         "target2_shape": target2_shape,
     }
 
-
 def encode_slots(slot_dict: Dict[str, str]) -> Dict[str, int]:
     return {head: HEAD_TO_INDEX[head][label] for head, label in slot_dict.items()}
-
 
 def decode_slots(index_dict: Dict[str, int]) -> Dict[str, str]:
     decoded = {}
     for head, vocab in HEAD_SPECS:
         decoded[head] = vocab[index_dict[head]]
     return decoded
-
 
 def slot_dict_to_sentence(slot_dict: Dict[str, str]) -> str:
     anchor = f"{slot_dict['anchor_size']} {slot_dict['anchor_color']} {slot_dict['anchor_shape']}"
@@ -154,48 +153,56 @@ class SlotDataset(Dataset):
         }
         return image, target, meta
 
+
+# CNN architecture variant: Simple CNN
 class SimpleCNNEncoder(nn.Module):
     def __init__(self):
         super().__init__()
+
         self.features = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
 
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
 
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
         )
 
-        self.classifier = nn.Sequential(
+        self.projection = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
+            nn.Linear(128, 512),
+            nn.ReLU(inplace=True),
             nn.Dropout(0.3),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
-        x = self.classifier(x)
+        x = self.projection(x)
         return x
 
-class SimpleSlotPredictionCNN(nn.Module):
+class SimpleSlotCNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.encoder = SimpleCNNEncoder()
         self.heads = nn.ModuleDict(
-            {head: nn.Linear(256, len(vocab)) for head, vocab in HEAD_SPECS}
+            {head: nn.Linear(512, len(vocab)) for head, vocab in HEAD_SPECS}
         )
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         z = self.encoder(x)
-        return {head: classifier(z) for head, classifier in self.heads.items()}
+        outputs = {}
+        for head in HEAD_NAMES:
+            outputs[head] = self.heads[head](z)
+        return outputs
 
+
+# evaluation attributes
 @dataclass
 class Metrics:
     exact_sentence_accuracy: float
@@ -205,26 +212,28 @@ class Metrics:
     attribute_accuracy: float
     per_head_accuracy: Dict[str, float]
 
-
 def collate_batch(batch):
     images = torch.stack([item[0] for item in batch])
     targets = {head: torch.stack([item[1][head] for item in batch]) for head in HEAD_NAMES}
     metas = [item[2] for item in batch]
     return images, targets, metas
 
-
 def compute_loss(
     outputs: Dict[str, torch.Tensor],
     targets: Dict[str, torch.Tensor],
     criterions: Dict[str, nn.Module],
 ) -> torch.Tensor:
-    losses = [criterions[head](outputs[head], targets[head]) for head in HEAD_NAMES]
+    losses = []
+    for head in HEAD_NAMES:
+        loss = criterions[head](outputs[head], targets[head])
+        losses.append(loss)
     return torch.stack(losses).mean()
 
-
 def predictions_to_index_dict(outputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-    return {head: logits.argmax(dim=1) for head, logits in outputs.items()}
-
+    preds = {}
+    for head in HEAD_NAMES:
+        preds[head] = outputs[head].argmax(dim=1)
+    return preds
 
 def evaluate_model(
     model: nn.Module,
@@ -302,42 +311,54 @@ def evaluate_model(
     prediction_df = pd.DataFrame(prediction_rows)
     return metrics, prediction_df
 
-
 def format_metrics(metrics: Metrics) -> Dict[str, float]:
-    flat = {
+    results = {
         "exact_sentence_accuracy": metrics.exact_sentence_accuracy,
         "all_slots_joint_accuracy": metrics.all_slots_joint_accuracy,
         "mean_slot_accuracy": metrics.mean_slot_accuracy,
         "relation_accuracy": metrics.relation_accuracy,
         "attribute_accuracy": metrics.attribute_accuracy,
     }
-    flat.update({f"acc_{head}": acc for head, acc in metrics.per_head_accuracy.items()})
-    return flat
 
+    for head, acc in metrics.per_head_accuracy.items():
+        results[f"acc_{head}"] = acc
+
+    return results
 
 def compute_selection_score(metrics: Metrics) -> float:
     return 0.6 * metrics.mean_slot_accuracy + 0.4 * metrics.relation_accuracy
 
+def save_relation_confusions(pred_df: pd.DataFrame, output_dir: str, prefix: str) -> None:
+    rel1_cm = pd.crosstab(pred_df["gold_rel1"], pred_df["pred_rel1"])
+    rel2_cm = pd.crosstab(pred_df["gold_rel2"], pred_df["pred_rel2"])
+
+    rel1_cm.to_csv(os.path.join(output_dir, f"{prefix}_rel1_confusion.csv"))
+    rel2_cm.to_csv(os.path.join(output_dir, f"{prefix}_rel2_confusion.csv"))
+
+
+# Train
 def main():
     set_seed(42)
 
     labels_path = "labels.csv"
     images_dir = "images"
-    output_dir = "simple_slot_outputs"
+    output_dir = "slot_simple_CNN_outputs"
 
     if not os.path.exists(labels_path):
-        raise FileNotFoundError("labels.csv not found.")
+        raise FileNotFoundError("labels.csv not found in the current working directory.")
     if not os.path.isdir(images_dir):
-        raise FileNotFoundError("images/ directory not found.")
+        raise FileNotFoundError("images/directory not found in the current working directory.")
 
     os.makedirs(output_dir, exist_ok=True)
+
     df = pd.read_csv(labels_path)
 
-    # same split logic as slot_structured_cnn_v2.py
+    # Keep the same split logic as slot_structured_cnn_v2.py
     train_val_df, test_df = train_test_split(df, test_size=0.15, random_state=42, shuffle=True)
     train_df, val_df = train_test_split(train_val_df, test_size=0.10, random_state=42, shuffle=True)
 
     transform = SimpleImageTransform(image_size=96)
+
     train_dataset = SlotDataset(train_df, images_dir, transform=transform)
     val_dataset = SlotDataset(val_df, images_dir, transform=transform)
     test_dataset = SlotDataset(test_df, images_dir, transform=transform)
@@ -347,7 +368,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, collate_fn=collate_batch)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = SimpleSlotPredictionCNN().to(device)
+    model = SimpleSlotCNN().to(device)
 
     criterions = {head: nn.CrossEntropyLoss(label_smoothing=0.02) for head in HEAD_NAMES}
     optimizer = optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)
@@ -451,6 +472,8 @@ def main():
     pd.DataFrame(history).to_csv(os.path.join(output_dir, "training_history.csv"), index=False)
     val_preds.to_csv(os.path.join(output_dir, "val_predictions.csv"), index=False)
     test_preds.to_csv(os.path.join(output_dir, "test_predictions.csv"), index=False)
+    save_relation_confusions(val_preds, output_dir, prefix="val")
+    save_relation_confusions(test_preds, output_dir, prefix="test")
 
     print("Saved:")
     print(f"- {best_model_path}")
@@ -458,6 +481,10 @@ def main():
     print(f"- {os.path.join(output_dir, 'training_history.csv')}")
     print(f"- {os.path.join(output_dir, 'val_predictions.csv')}")
     print(f"- {os.path.join(output_dir, 'test_predictions.csv')}")
+    print(f"- {os.path.join(output_dir, 'val_rel1_confusion.csv')}")
+    print(f"- {os.path.join(output_dir, 'val_rel2_confusion.csv')}")
+    print(f"- {os.path.join(output_dir, 'test_rel1_confusion.csv')}")
+    print(f"- {os.path.join(output_dir, 'test_rel2_confusion.csv')}")
 
 
 if __name__ == "__main__":
