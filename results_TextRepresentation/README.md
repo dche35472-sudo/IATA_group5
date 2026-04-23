@@ -18,12 +18,12 @@ The structured model instead uses a **slot-based output format**, where the sent
 
 This was designed to better match the structure of the dataset descriptions and to support more informative error analysis.
 
-## Main comparison in this folder
+## Main comparison
 
-The main controlled comparison in this folder is:
+The main controlled comparison for this module is:
 
 1. **updated baseline** (`baseline_CNN.py`)
-2. **controlled structured slot model**
+2. **controlled structured slot model** (`slot_structured_cnn_controlled.py`)
 
 In this comparison, the encoder and preprocessing settings are aligned as closely as possible, so the main difference is the **output representation** rather than the visual backbone.
 
@@ -51,12 +51,44 @@ The final recommended model for this specific module is the **controlled structu
 - `best_slot_model_controlled.pt`  
   Saved checkpoint of the controlled structured slot model.
 
+## Related files stored in the project root
+
+The following files are related to this module but are stored in the project root rather than in this folder:
+
+- `baseline_CNN.py`  
+  Updated baseline model used for the controlled comparison.
+
+- `slot_structured_cnn_controlled.py`  
+  Controlled structured slot model script.
+
+- `baseline_unified_eval.py`  
+  Script used to evaluate the baseline under the same structured evaluation framework.
+
 - `baseline_unified_metrics.json`  
-  Unified evaluation results for the updated baseline under the same evaluation framework.
+  Unified evaluation results for the updated baseline.
 
 - `baseline_unified_eval_details.csv`  
   Detailed unified evaluation outputs for the updated baseline.
 
+- `model_comparison_summary.csv`  
+  Summary table comparing the updated baseline and the controlled structured slot model.
+
+- `make_output_comparison_summary...`  
+  Script used to generate the comparison summary table.
+
+## Main findings supported by these files
+
+The main findings from this controlled comparison are:
+
+- the structured slot-based output matches the dataset sentence structure better than the bag-of-words baseline output
+- under the same encoder setting, the structured output performs better on slot-level, attribute-level, and relation-level metrics
+- relation prediction remains the main bottleneck, especially directional relations
+
+## Notes
+
+- Exact sentence match is a very strict metric in this task, because an error in any slot makes the full sentence incorrect.
+- Therefore, slot-level accuracy, attribute accuracy, relation accuracy, and confusion analysis are also important for interpretation.
+- The baseline unified evaluation uses an intentionally optimistic mapping from bag-of-words predictions to the structured two-clause format, in order to make the comparison fairer to the baseline.
 - `model_comparison_summary.csv`  
   Summary table comparing the updated baseline and the controlled structured slot model.
 
