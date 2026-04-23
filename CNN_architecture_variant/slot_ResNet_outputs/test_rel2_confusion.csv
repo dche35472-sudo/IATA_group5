@@ -1,6 +1,6 @@
 gold_rel2,above,below,left of,overlapping,right of
-above,111,208,43,98,27
-below,115,216,47,96,39
-left of,49,96,77,102,62
-overlapping,49,79,37,245,45
-right of,57,95,78,101,78
+above,52,275,58,52,50
+below,50,278,67,56,62
+left of,16,138,95,47,90
+overlapping,29,137,62,153,74
+right of,18,126,128,46,91

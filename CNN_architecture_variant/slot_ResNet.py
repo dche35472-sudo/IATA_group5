@@ -17,15 +17,15 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision.models import resnet18
 
 
-# same preprocessing as in the slot_structured_CNN_v2 model
 def set_seed(seed: int = 42) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
+
 class SimpleImageTransform:
-    def __init__(self, image_size: int = 96):
+    def __init__(self, image_size: int = 64):
         self.image_size = image_size
         self.mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
         self.std = np.array([0.5, 0.5, 0.5], dtype=np.float32)
@@ -37,7 +37,8 @@ class SimpleImageTransform:
         arr = np.transpose(arr, (2, 0, 1))
         return torch.tensor(arr, dtype=torch.float32)
 
-# the same 11 slot structured sentence representation format
+
+# same 11 slot structured sentence representation format
 SIZES = ["small", "medium", "big"]
 COLORS = ["red", "blue", "green", "yellow", "black"]
 SHAPES = ["circle", "square", "triangle"]
@@ -108,14 +109,17 @@ def parse_description(description: str) -> Dict[str, str]:
         "target2_shape": target2_shape,
     }
 
+
 def encode_slots(slot_dict: Dict[str, str]) -> Dict[str, int]:
     return {head: HEAD_TO_INDEX[head][label] for head, label in slot_dict.items()}
+
 
 def decode_slots(index_dict: Dict[str, int]) -> Dict[str, str]:
     decoded = {}
     for head, vocab in HEAD_SPECS:
         decoded[head] = vocab[index_dict[head]]
     return decoded
+
 
 def slot_dict_to_sentence(slot_dict: Dict[str, str]) -> str:
     anchor = f"{slot_dict['anchor_size']} {slot_dict['anchor_color']} {slot_dict['anchor_shape']}"
@@ -125,6 +129,7 @@ def slot_dict_to_sentence(slot_dict: Dict[str, str]) -> str:
         f"a {anchor} is {slot_dict['rel1']} a {target1} | "
         f"a {anchor} is {slot_dict['rel2']} a {target2}"
     )
+
 
 class SlotDataset(Dataset):
     def __init__(self, dataframe: pd.DataFrame, img_dir: str, transform=None):
@@ -155,7 +160,7 @@ class SlotDataset(Dataset):
         return image, target, meta
 
 
-# CNN architecture variant: ResNet18
+# CNN architecture variant: ResNet
 class ResNet18Encoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -169,13 +174,14 @@ class ResNet18Encoder(nn.Module):
             nn.Flatten(),
             nn.Linear(512, 512),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0.4),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
         x = self.projection(x)
         return x
+
 
 class ResNetSlotCNN(nn.Module):
     def __init__(self):
@@ -203,11 +209,13 @@ class Metrics:
     attribute_accuracy: float
     per_head_accuracy: Dict[str, float]
 
+
 def collate_batch(batch):
     images = torch.stack([item[0] for item in batch])
     targets = {head: torch.stack([item[1][head] for item in batch]) for head in HEAD_NAMES}
     metas = [item[2] for item in batch]
     return images, targets, metas
+
 
 def compute_loss(
     outputs: Dict[str, torch.Tensor],
@@ -220,11 +228,13 @@ def compute_loss(
         losses.append(loss)
     return torch.stack(losses).mean()
 
+
 def predictions_to_index_dict(outputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
     preds = {}
     for head in HEAD_NAMES:
         preds[head] = outputs[head].argmax(dim=1)
     return preds
+
 
 def evaluate_model(
     model: nn.Module,
@@ -302,6 +312,7 @@ def evaluate_model(
     prediction_df = pd.DataFrame(prediction_rows)
     return metrics, prediction_df
 
+
 def format_metrics(metrics: Metrics) -> Dict[str, float]:
     results = {
         "exact_sentence_accuracy": metrics.exact_sentence_accuracy,
@@ -316,8 +327,10 @@ def format_metrics(metrics: Metrics) -> Dict[str, float]:
 
     return results
 
+
 def compute_selection_score(metrics: Metrics) -> float:
     return 0.6 * metrics.mean_slot_accuracy + 0.4 * metrics.relation_accuracy
+
 
 def save_relation_confusions(pred_df: pd.DataFrame, output_dir: str, prefix: str) -> None:
     rel1_cm = pd.crosstab(pred_df["gold_rel1"], pred_df["pred_rel1"])
@@ -344,11 +357,10 @@ def main():
 
     df = pd.read_csv(labels_path)
 
-    # Keep the same split logic as slot_structured_cnn_v2.py
     train_val_df, test_df = train_test_split(df, test_size=0.15, random_state=42, shuffle=True)
     train_df, val_df = train_test_split(train_val_df, test_size=0.10, random_state=42, shuffle=True)
 
-    transform = SimpleImageTransform(image_size=96)
+    transform = SimpleImageTransform(image_size=64)
 
     train_dataset = SlotDataset(train_df, images_dir, transform=transform)
     val_dataset = SlotDataset(val_df, images_dir, transform=transform)
@@ -361,7 +373,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = ResNetSlotCNN().to(device)
 
-    criterions = {head: nn.CrossEntropyLoss(label_smoothing=0.02) for head in HEAD_NAMES}
+    criterions = {head: nn.CrossEntropyLoss() for head in HEAD_NAMES}
     optimizer = optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
@@ -374,7 +386,7 @@ def main():
     early_stop_patience = 6
     history = []
     best_score = -1.0
-    best_model_path = os.path.join(output_dir, "best_resnet_slot_model.pt")
+    best_model_path = os.path.join(output_dir, "best_slot_resnet_model.pt")
     patience_counter = 0
 
     print(f"Training on {len(train_df)} samples; validating on {len(val_df)}; testing on {len(test_df)}.")
@@ -415,7 +427,6 @@ def main():
             f"Epoch {epoch:02d} | "
             f"lr={current_lr:.6f} | "
             f"train_loss={train_loss:.4f} | "
-            f"val_exact={val_metrics.exact_sentence_accuracy:.4f} | "
             f"val_joint={val_metrics.all_slots_joint_accuracy:.4f} | "
             f"val_mean_slot={val_metrics.mean_slot_accuracy:.4f} | "
             f"val_relation={val_metrics.relation_accuracy:.4f} | "
@@ -450,7 +461,7 @@ def main():
             "test": int(len(test_df)),
         },
         "model_notes": {
-            "image_size": 96,
+            "image_size": 64,
             "encoder": "resnet18",
             "optimizer": "AdamW",
             "selection_metric": "0.6 * val_mean_slot_accuracy + 0.4 * val_relation_accuracy",
