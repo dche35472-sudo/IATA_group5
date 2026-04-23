@@ -1,14 +1,14 @@
 # Text Representation / Output Format – Main Results
 
-This folder contains the main result files for the text representation / output format comparison part of the project.
+This folder contains the main result files for the **text representation / output format comparison** part of the project.
 
 ## Purpose of this module
 
-The goal of this part is to compare different ways of representing the target sentence in the same image-to-sentence task.
+The aim of this part is to compare different ways of representing the target sentence in the same image-to-sentence task.
 
-The original baseline uses a multi-label bag-of-words style output, where the model predicts whether predefined words appear in the description.
+The updated baseline uses a **multi-label bag-of-words style output**, where the model predicts whether predefined words appear in the description.
 
-The structured model instead uses a slot-based output format, where the sentence is decomposed into structured components such as:
+The structured model instead uses a **slot-based output format**, where the sentence is decomposed into structured components such as:
 
 - anchor size / colour / shape
 - relation 1
@@ -18,24 +18,29 @@ The structured model instead uses a slot-based output format, where the sentence
 
 This was designed to better match the structure of the dataset descriptions and to support more informative error analysis.
 
-## Final recommended model
+## Main comparison in this folder
 
-The final recommended model for this part is:
+The main controlled comparison in this folder is:
 
-- `slot_structured_cnn_v2.py`
+1. **updated baseline** (`baseline_CNN.py`)
+2. **controlled structured slot model**
 
-This version gave the most stable test performance among the structured-output variants and is the version recommended for the main comparison in the report.
+In this comparison, the encoder and preprocessing settings are aligned as closely as possible, so the main difference is the **output representation** rather than the visual backbone.
+
+## Final recommended model for this module
+
+The final recommended model for this specific module is the **controlled structured slot model**, which is used for the controlled output representation comparison.
 
 ## Files in this folder
 
 - `metrics.json`  
-  Main evaluation results for the final recommended structured model.
+  Main evaluation results for the controlled structured slot model.
 
 - `training_history.csv`  
-  Training and validation history for the final model.
+  Training history for the controlled structured slot model.
 
 - `test_predictions.csv`  
-  Test predictions from the final model.
+  Test predictions from the controlled structured slot model.
 
 - `test_rel1_confusion.csv`  
   Confusion results for the first relation slot.
@@ -43,42 +48,28 @@ This version gave the most stable test performance among the structured-output v
 - `test_rel2_confusion.csv`  
   Confusion results for the second relation slot.
 
-- `val_predictions.csv`  
-  Validation predictions for the final model.
-
-- `val_rel1_confusion.csv`  
-  Validation confusion results for the first relation slot.
-
-- `val_rel2_confusion.csv`  
-  Validation confusion results for the second relation slot.
-
-- `best_slot_model_v2.pt`  
-  Saved checkpoint of the final recommended model.
+- `best_slot_model_controlled.pt`  
+  Saved checkpoint of the controlled structured slot model.
 
 - `baseline_unified_metrics.json`  
-  Unified evaluation results for the original baseline under the same evaluation framework.
+  Unified evaluation results for the updated baseline under the same evaluation framework.
 
 - `baseline_unified_eval_details.csv`  
-  Detailed baseline evaluation outputs.
+  Detailed unified evaluation outputs for the updated baseline.
 
 - `model_comparison_summary.csv`  
-  Summary table comparing baseline and structured-output variants.
+  Summary table comparing the updated baseline and the controlled structured slot model.
 
-## How these results should be used
+## Main findings supported by these files
 
-For the main report, the recommended comparison is:
+The main findings from this controlled comparison are:
 
-1. original baseline (`baseline_CNN.py`)
-2. initial structured slot model
-3. improved structured slot model (`slot_structured_cnn_v2.py`)
-
-The main findings supported by these files are:
-
-- the structured output format provides a better match to the sentence structure in the dataset
-- a stronger visual encoder improves slot-level and attribute-level prediction
+- the structured slot-based output matches the dataset sentence structure better than the bag-of-words baseline output
+- under the same encoder setting, the structured output performs better on slot-level, attribute-level, and relation-level metrics
 - relation prediction remains the main bottleneck, especially directional relations
 
 ## Notes
 
 - Exact sentence match is a very strict metric in this task, because an error in any slot makes the full sentence incorrect.
 - Therefore, slot-level accuracy, attribute accuracy, relation accuracy, and confusion analysis are also important for interpretation.
+- The baseline unified evaluation uses an intentionally optimistic mapping from bag-of-words predictions to the structured two-clause format, in order to make the comparison fairer to the baseline.
