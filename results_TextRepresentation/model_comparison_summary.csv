@@ -1,5 +1,0 @@
-model,exact_sentence_accuracy,all_slots_joint_accuracy,mean_slot_accuracy,relation_accuracy,attribute_accuracy,notes
-baseline_unified,0.0,0.0,0.2381010101,0.1735555556,0.2524444444,optimistic unified mapping from bag-of-words output
-v1_structured_slot,0.0,0.0,0.4214141414,0.2922222222,0.4501234568,initial structured slot model
-v2_structured_slot,0.0,0.0,0.5033535354,0.3255555556,0.5428641975,best overall test performance
-v23_structured_slot,0.0,0.0,0.5008080808,0.3197777778,0.5410370370,aux relation factorization did not beat v2
