@@ -1,0 +1,10 @@
+error_type,n_samples,proportion,model
+mixed_error,2033,0.9035555555555556,SimpleCNN
+attribute_only,215,0.09555555555555556,SimpleCNN
+relation_only,2,0.0008888888888888889,SimpleCNN
+mixed_error,1993,0.8857777777777778,DeeperCNN
+attribute_only,256,0.11377777777777778,DeeperCNN
+both_correct,1,0.00044444444444444447,DeeperCNN
+mixed_error,1984,0.8817777777777778,ResNet18
+attribute_only,265,0.11777777777777777,ResNet18
+relation_only,1,0.00044444444444444447,ResNet18
