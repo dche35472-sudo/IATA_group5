@@ -6,7 +6,7 @@ with open("baseline_unified_metrics.json", "r", encoding="utf-8") as f:
     baseline_metrics = json.load(f)
 
 # 2. Read controlled slot model metrics
-with open("slot_model_outputs_controlled/metrics.json", "r", encoding="utf-8") as f:
+with open("results_TextRepresentation/metrics.json", "r", encoding="utf-8") as f:
     controlled_metrics = json.load(f)
 
 # baseline metrics are stored under ["test"]
