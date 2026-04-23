@@ -311,7 +311,7 @@ def main():
     if not os.path.exists("images"):
         raise FileNotFoundError("images/ folder not found in the current directory.")
 
-    output_dir = "slot_model_outputs_controlled"
+    output_dir = "results_TextRepresentation"
     os.makedirs(output_dir, exist_ok=True)
 
     df = pd.read_csv("labels.csv")
