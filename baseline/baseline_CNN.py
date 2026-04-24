@@ -104,11 +104,11 @@ class BaselineCNN(nn.Module):
 # 4. Pipeline with Accuracy Calculation
 # ==========================================
 def main():
-    if not os.path.exists('labels.csv'):
+    if not os.path.exists('../labels.csv'):
         print("Error: labels.csv not found.")
         return
 
-    df = pd.read_csv('labels.csv')
+    df = pd.read_csv('../labels.csv')
     train_df, test_df = train_test_split(df, test_size=0.15, random_state=42)
 
     transform = transforms.Compose([
@@ -118,8 +118,8 @@ def main():
     ])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    train_loader = DataLoader(ShapeDataset(train_df, 'images', transform), batch_size=64, shuffle=True)
-    test_loader = DataLoader(ShapeDataset(test_df, 'images', transform), batch_size=64, shuffle=False)
+    train_loader = DataLoader(ShapeDataset(train_df, '../images', transform), batch_size=64, shuffle=True)
+    test_loader = DataLoader(ShapeDataset(test_df, '../images', transform), batch_size=64, shuffle=False)
 
     model = BaselineCNN(len(VOCAB)).to(device)
     criterion = nn.BCELoss()
