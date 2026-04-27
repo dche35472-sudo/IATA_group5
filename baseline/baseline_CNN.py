@@ -7,23 +7,40 @@ from PIL import Image
 import pandas as pd
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+import random
+
 
 # ==========================================
-# 1. Vocabulary Definition
+# 1. Reproducibility: Set Random Seed [cite: 15]
+# ==========================================
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+set_seed(42)
+
+# ==========================================
+# 2. Vocabulary Definition (Updated naming) [cite: 8]
 # ==========================================
 VOCAB = ['circle', 'square', 'triangle', 'red', 'blue', 'green', 'yellow', 'black',
-         'above', 'below', 'left', 'right', 'overlapping', 'small', 'medium', 'big']
+         'above', 'below', 'left of', 'right of', 'overlapping', 'small', 'medium', 'big']
 
 
 # ==========================================
-# 2. Logic-based Sentence Generator
+# 3. Logic-based Sentence Generator
 # ==========================================
 def generate_reciprocal_sentences(tags):
     shapes = [t for t in tags if t in ['circle', 'square', 'triangle']]
     colors = [t for t in tags if t in ['red', 'blue', 'green', 'yellow', 'black']]
     sizes = [t for t in tags if t in ['small', 'medium', 'big']]
-    relations = [t for t in tags if t in ['above', 'below', 'left', 'right', 'overlapping']]
+    relations = [t for t in tags if t in ['above', 'below', 'left of', 'right of', 'overlapping']]
 
     sentences = []
     if len(shapes) >= 2:
@@ -37,10 +54,10 @@ def generate_reciprocal_sentences(tags):
             elif rel == 'below':
                 sentences.append(f"a {obj1} is below a {obj2}")
                 sentences.append(f"a {obj2} is above a {obj1}")
-            elif rel == 'left':
+            elif rel == 'left of':
                 sentences.append(f"a {obj1} is left of a {obj2}")
                 sentences.append(f"a {obj2} is right of a {obj1}")
-            elif rel == 'right':
+            elif rel == 'right of':
                 sentences.append(f"a {obj1} is right of a {obj2}")
                 sentences.append(f"a {obj2} is left of a {obj1}")
             elif rel == 'overlapping':
@@ -56,7 +73,7 @@ def generate_reciprocal_sentences(tags):
 
 
 # ==========================================
-# 3. Dataset & Model Architecture
+# 4. Dataset & Model Architecture
 # ==========================================
 class ShapeDataset(Dataset):
     def __init__(self, dataframe, img_dir, transform=None):
@@ -73,6 +90,7 @@ class ShapeDataset(Dataset):
         desc = str(self.df.iloc[idx]['description']).lower()
         label = torch.zeros(len(VOCAB))
         for i, word in enumerate(VOCAB):
+            # Now matches exact strings like 'left of'
             if word in desc: label[i] = 1.0
         if self.transform: image = self.transform(image)
         return image, label, self.df.iloc[idx]['file_name'], self.df.iloc[idx]['description']
@@ -81,14 +99,12 @@ class ShapeDataset(Dataset):
 class BaselineCNN(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        # Feature Extraction: 4 Convolutional Layers
         self.features = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
             nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
             nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
             nn.Conv2d(128, 256, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2)
         )
-        # Classification: 2 Fully Connected Layers
         self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Linear(256 * 4 * 4, 512), nn.ReLU(),
@@ -101,14 +117,17 @@ class BaselineCNN(nn.Module):
 
 
 # ==========================================
-# 4. Pipeline with Accuracy Calculation
+# 5. Training Pipeline
 # ==========================================
 def main():
-    if not os.path.exists('../labels.csv'):
-        print("Error: labels.csv not found.")
+    label_path = '../labels.csv' if os.path.exists('../labels.csv') else 'labels.csv'
+    img_dir = '../images' if os.path.exists('../images') else 'images'
+
+    if not os.path.exists(label_path):
+        print(f"Error: {label_path} not found.")
         return
 
-    df = pd.read_csv('../labels.csv')
+    df = pd.read_csv(label_path)
     train_df, test_df = train_test_split(df, test_size=0.15, random_state=42)
 
     transform = transforms.Compose([
@@ -118,12 +137,15 @@ def main():
     ])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    train_loader = DataLoader(ShapeDataset(train_df, '../images', transform), batch_size=64, shuffle=True)
-    test_loader = DataLoader(ShapeDataset(test_df, '../images', transform), batch_size=64, shuffle=False)
+    train_loader = DataLoader(ShapeDataset(train_df, img_dir, transform), batch_size=64, shuffle=True)
+    test_loader = DataLoader(ShapeDataset(test_df, img_dir, transform), batch_size=64, shuffle=False)
 
     model = BaselineCNN(len(VOCAB)).to(device)
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0005)
+
+    best_loss = float('inf')
+    loss_history = []
 
     print(f"Starting training on {device}...")
     for epoch in range(15):
@@ -138,28 +160,45 @@ def main():
             optimizer.step()
             running_loss += loss.item()
 
-        print(f"Epoch [{epoch + 1}/15], Loss: {running_loss / len(train_loader):.4f}")
+        epoch_loss = running_loss / len(train_loader)
+        loss_history.append(epoch_loss)
+        print(f"Epoch [{epoch + 1}/15], Loss: {epoch_loss:.4f}")
 
-    # Evaluation phase
+        # Save the best model checkpoint [cite: 16]
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
+            torch.save(model.state_dict(), 'best_baseline_model.pth')
+            print(f"--> Saved new best model at epoch {epoch + 1}")
+
+    # Plot Loss Curve
+    plt.figure()
+    plt.plot(range(1, 16), loss_history, marker='o')
+    plt.title('Training Loss Curve')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.savefig('baseline_loss_curve.png')
+    print("Loss curve saved as baseline_loss_curve.png")
+
+    # Evaluation using the BEST model [cite: 16]
+    print("Loading best model for evaluation...")
+    model.load_state_dict(torch.load('best_baseline_model.pth'))
     model.eval()
+
     all_results = []
     correct_samples = 0
     total_samples = 0
 
-    print("Evaluating model...")
     with torch.no_grad():
         for imgs, lbls, fnames, descs in test_loader:
             imgs, lbls = imgs.to(device), lbls.to(device)
             outputs = model(imgs)
             preds_bin = (outputs > 0.5).float()
 
-            # Calculate Exact Match Accuracy (Subset Accuracy)
             for i in range(imgs.size(0)):
                 total_samples += 1
                 if torch.equal(preds_bin[i], lbls[i]):
                     correct_samples += 1
 
-                # Collect data for CSV
                 tags = [VOCAB[j] for j, v in enumerate(preds_bin[i]) if v == 1.0]
                 all_results.append({
                     'file_name': fnames[i],
@@ -168,7 +207,7 @@ def main():
                 })
 
     accuracy = (correct_samples / total_samples) * 100
-    print(f"\nFinal Test Accuracy (Exact Match): {accuracy:.2f}%")
+    print(f"\nFinal Test Accuracy (Exact Match using Best Model): {accuracy:.2f}%")
 
     pd.DataFrame(all_results).to_csv('baseline_overlapping_results.csv', index=False)
     print("Results saved to baseline_overlapping_results.csv")
