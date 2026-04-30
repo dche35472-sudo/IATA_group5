@@ -1,0 +1,20 @@
+{
+  "test": {
+    "exact_sentence_accuracy": 0.0,
+    "all_slots_joint_accuracy": 0.0,
+    "mean_slot_accuracy": 0.2532525252525253,
+    "relation_accuracy": 0.21,
+    "attribute_accuracy": 0.2628641975308642
+  },
+  "notes": {
+    "evaluation_style": "optimistic best-candidate mapping from bag-of-words output to the structured two-clause slot format",
+    "parseable_prediction_rows": 1522,
+    "total_rows": 2250,
+    "prediction_parse_rate": 0.6764444444444444,
+    "important_limitations": [
+      "baseline decoder generates reciprocal sentences rather than the anchor-repeated gold template",
+      "baseline bag-of-words output may not identify a unique anchor object and two-clause structure",
+      "this mapping is intentionally optimistic to make comparison fairer to the baseline"
+    ]
+  }
+}
