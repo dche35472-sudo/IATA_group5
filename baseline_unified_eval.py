@@ -11,7 +11,7 @@ GT_RE = re.compile(
     r"a (\w+) (\w+) (\w+) is (left of|right of|above|below|overlapping) a (\w+) (\w+) (\w+)$"
 )
 CLAUSE_RE = re.compile(
-    r"^a (\w+) (\w+) (\w+) is (left of|right of|above|below) a (\w+) (\w+) (\w+)$"
+    r"^a (\w+) (\w+) (\w+) is (left of|right of|above|below|overlapping) a (\w+) (\w+) (\w+)$"
 )
 SLOT_KEYS = [
     "anchor_size", "anchor_color", "anchor_shape",
@@ -186,8 +186,8 @@ def main():
             "total_rows": int(len(detail_df)),
             "prediction_parse_rate": float(parseable_rows / len(detail_df)),
             "important_limitations": [
-                "baseline vocabulary does not include overlapping",
                 "baseline decoder generates reciprocal sentences rather than the anchor-repeated gold template",
+                "baseline bag-of-words output may not identify a unique anchor object and two-clause structure",
                 "this mapping is intentionally optimistic to make comparison fairer to the baseline",
             ],
         },
