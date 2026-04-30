@@ -1,0 +1,32 @@
+{
+  "exact_sentence_accuracy": 0.00044444444444444447,
+  "all_slots_joint_accuracy": 0.00044444444444444447,
+  "mean_slot_accuracy": 0.4437979797979798,
+  "relation_accuracy": 0.31066666666666665,
+  "attribute_accuracy": 0.4733827160493827,
+  "acc_anchor_size": 0.5222222222222223,
+  "acc_anchor_color": 0.43866666666666665,
+  "acc_anchor_shape": 0.45022222222222225,
+  "acc_rel1": 0.30044444444444446,
+  "acc_target1_size": 0.5311111111111111,
+  "acc_target1_color": 0.428,
+  "acc_target1_shape": 0.45155555555555554,
+  "acc_rel2": 0.3208888888888889,
+  "acc_target2_size": 0.524,
+  "acc_target2_color": 0.44,
+  "acc_target2_shape": 0.4746666666666667,
+  "split_sizes": {
+    "train": 12750,
+    "test": 2250
+  },
+  "model_notes": {
+    "image_size": 64,
+    "encoder": "updated_baseline_aligned_4layer_cnn",
+    "comparison_purpose": "controlled_output_representation_comparison",
+    "output_format": "structured_slot_based",
+    "loss": "cross_entropy_per_slot",
+    "split_alignment": "same style as updated baseline_CNN.py (train/test, test_size=0.15, random_state=42)",
+    "random_seed": 42,
+    "checkpoint_note": "final epoch checkpoint; no validation-based best-epoch selection"
+  }
+}
