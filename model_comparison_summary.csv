@@ -1,3 +1,0 @@
-model,comparison_role,exact_sentence_accuracy,all_slots_joint_accuracy,mean_slot_accuracy,relation_accuracy,attribute_accuracy
-updated_baseline,main baseline for controlled output comparison,0.0,0.0,0.1977,0.1427,0.2099
-controlled_structured_slot,main model for controlled output comparison,0.0,0.0,0.4442,0.3024,0.4757
