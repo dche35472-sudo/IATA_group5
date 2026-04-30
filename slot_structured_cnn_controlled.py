@@ -1,6 +1,7 @@
 
 import json
 import math
+import random
 import os
 import re
 from dataclasses import dataclass
@@ -26,6 +27,17 @@ from sklearn.model_selection import train_test_split
 # - same train/test split style (test_size=0.15, random_state=42)
 # - slot-based output heads instead of bag-of-words multi-label output
 # =========================================================
+
+
+def set_seed(seed: int = 42):
+    """Make training runs more reproducible."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 RELATION_CANONICAL = {
@@ -306,6 +318,8 @@ def evaluate_model(model, loader, device):
 
 
 def main():
+    set_seed(42)
+
     if not os.path.exists("labels.csv"):
         raise FileNotFoundError("labels.csv not found in the current directory.")
     if not os.path.exists("images"):
@@ -371,6 +385,8 @@ def main():
         "output_format": "structured_slot_based",
         "loss": "cross_entropy_per_slot",
         "split_alignment": "same style as updated baseline_CNN.py (train/test, test_size=0.15, random_state=42)",
+        "random_seed": 42,
+        "checkpoint_note": "final epoch checkpoint; no validation-based best-epoch selection",
     }
 
     pd.DataFrame(history_rows).to_csv(os.path.join(output_dir, "training_history.csv"), index=False)
