@@ -129,7 +129,7 @@ def evaluate_one(pred_slots: dict, gold_slots: dict):
 
 
 def main():
-    results_path = Path("baseline/baseline_overlapping_results.csv")
+    results_path = Path("baseline_overlapping_results.csv")
     if not results_path.exists():
         raise FileNotFoundError("baseline_overlapping_results.csv not found in current directory")
 
