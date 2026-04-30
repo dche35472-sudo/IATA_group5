@@ -4,11 +4,11 @@ This folder contains the main result files for the **text representation / outpu
 
 ## Purpose of this module
 
-The aim of this part is to compare different ways of representing the target sentence in the same image-to-sentence task.
+The aim of this module is to compare different ways of representing the target sentence in the same image-to-sentence task.
 
-The updated baseline uses a **multi-label bag-of-words style output**, where the model predicts whether predefined words appear in the description.
+The updated baseline uses a **multi-label bag-of-words output**, where the model predicts whether predefined words appear in the description. This provides a simple and useful baseline, but it does not explicitly represent the structure of the target sentence.
 
-The structured model instead uses a **slot-based output format**, where the sentence is decomposed into structured components such as:
+The structured model instead uses a **slot-based output format**, where each sentence is decomposed into structured components:
 
 - anchor size / colour / shape
 - relation 1
@@ -16,20 +16,33 @@ The structured model instead uses a **slot-based output format**, where the sent
 - relation 2
 - target 2 size / colour / shape
 
-This was designed to better match the structure of the dataset descriptions and to support more informative error analysis.
+This representation was designed to better match the dataset descriptions and to support more detailed error analysis.
 
-## Main comparison
+## Main controlled comparison
 
-The main controlled comparison for this module is:
+The main comparison in this module is between:
 
 1. **updated baseline** (`baseline_CNN.py`)
 2. **controlled structured slot model** (`slot_structured_cnn_controlled.py`)
 
-In this comparison, the encoder and preprocessing settings are aligned as closely as possible, so the main difference is the **output representation** rather than the visual backbone.
+The controlled structured slot model uses the same general encoder style, image size, and train/test split setting as the updated baseline. This means that the main experimental difference is the **output representation**, rather than the visual backbone.
 
 ## Final recommended model for this module
 
-The final recommended model for this specific module is the **controlled structured slot model**, which is used for the controlled output representation comparison.
+The final recommended model for this module is the **controlled structured slot model**.
+
+This does not mean that the full sentence prediction task is solved. Exact sentence accuracy remains very low because a sentence is only counted as correct when every slot is correct. However, the structured slot model gives better partial prediction performance and provides more interpretable error analysis than the bag-of-words baseline.
+
+## Main results
+
+The corrected comparison results are:
+
+| Model | Exact sentence accuracy | All-slots joint accuracy | Mean slot accuracy | Relation accuracy | Attribute accuracy |
+|---|---:|---:|---:|---:|---:|
+| updated baseline | 0.0000 | 0.0000 | 0.2533 | 0.2100 | 0.2629 |
+| controlled structured slot | 0.0004 | 0.0004 | 0.4438 | 0.3107 | 0.4734 |
+
+After correcting the baseline evaluation to parse `overlapping` predictions, the baseline scores increased, but the controlled structured slot model still performs better on mean slot accuracy, relation accuracy, and attribute accuracy.
 
 ## Files in this folder
 
@@ -49,20 +62,20 @@ The final recommended model for this specific module is the **controlled structu
   Confusion results for the second relation slot.
 
 - `best_slot_model_controlled.pt`  
-  Saved checkpoint of the controlled structured slot model.
+  Saved checkpoint of the controlled structured slot model. The filename is kept for consistency with earlier outputs, but this checkpoint represents the final training epoch rather than a validation-selected best epoch.
 
 ## Related files stored in the project root
 
 The following files are related to this module but are stored in the project root rather than in this folder:
 
 - `baseline_CNN.py`  
-  Updated baseline model used for the controlled comparison.
+  Updated bag-of-words baseline model used for the controlled comparison.
 
 - `slot_structured_cnn_controlled.py`  
-  Controlled structured slot model script.
+  Controlled structured slot model script. The current version includes seed initialisation for better reproducibility.
 
 - `baseline_unified_eval.py`  
-  Script used to evaluate the baseline under the same structured evaluation framework.
+  Script used to evaluate the baseline under the same structured evaluation framework. The corrected version parses `overlapping` predictions.
 
 - `baseline_unified_metrics.json`  
   Unified evaluation results for the updated baseline.
@@ -73,35 +86,28 @@ The following files are related to this module but are stored in the project roo
 - `model_comparison_summary.csv`  
   Summary table comparing the updated baseline and the controlled structured slot model.
 
-- `make_output_comparison_summary...`  
+- `make_output_comparison_summary.py`  
   Script used to generate the comparison summary table.
 
-## Main findings supported by these files
+- `rel1_confusion.png`  
+  Visual confusion matrix for the first relation slot.
 
-The main findings from this controlled comparison are:
-
-- the structured slot-based output matches the dataset sentence structure better than the bag-of-words baseline output
-- under the same encoder setting, the structured output performs better on slot-level, attribute-level, and relation-level metrics
-- relation prediction remains the main bottleneck, especially directional relations
-
-## Notes
-
-- Exact sentence match is a very strict metric in this task, because an error in any slot makes the full sentence incorrect.
-- Therefore, slot-level accuracy, attribute accuracy, relation accuracy, and confusion analysis are also important for interpretation.
-- The baseline unified evaluation uses an intentionally optimistic mapping from bag-of-words predictions to the structured two-clause format, in order to make the comparison fairer to the baseline.
-- `model_comparison_summary.csv`  
-  Summary table comparing the updated baseline and the controlled structured slot model.
+- `rel2_confusion.png`  
+  Visual confusion matrix for the second relation slot.
 
 ## Main findings supported by these files
 
 The main findings from this controlled comparison are:
 
 - the structured slot-based output matches the dataset sentence structure better than the bag-of-words baseline output
-- under the same encoder setting, the structured output performs better on slot-level, attribute-level, and relation-level metrics
-- relation prediction remains the main bottleneck, especially directional relations
+- after correcting the baseline evaluation, the structured slot model still achieves higher mean slot, relation, and attribute accuracy
+- exact sentence accuracy remains very low for both models, showing that full sentence prediction is still difficult
+- relation prediction remains the main bottleneck, especially directional relations such as `above` / `below` and `left of` / `right of`
+- `overlapping` is comparatively easier to detect than some directional relations in the structured model outputs
 
 ## Notes
 
-- Exact sentence match is a very strict metric in this task, because an error in any slot makes the full sentence incorrect.
-- Therefore, slot-level accuracy, attribute accuracy, relation accuracy, and confusion analysis are also important for interpretation.
+- Exact sentence match is a very strict metric in this task, because an error in any single slot makes the full sentence incorrect.
+- Therefore, slot-level accuracy, attribute accuracy, relation accuracy, and confusion analysis are important for interpreting model behaviour.
 - The baseline unified evaluation uses an intentionally optimistic mapping from bag-of-words predictions to the structured two-clause format, in order to make the comparison fairer to the baseline.
+- The controlled structured slot model is now seeded for reproducibility. However, because no validation split is used, the saved checkpoint should be interpreted as the final epoch checkpoint rather than a validation-selected best model.
