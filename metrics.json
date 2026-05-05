@@ -1,0 +1,24 @@
+{
+  "n_samples": 100,
+  "exact_sentence_accuracy": 0.0,
+  "all_slots_joint_accuracy": 0.0,
+  "mean_slot_accuracy": 0.42363636363636364,
+  "relation_accuracy": 0.305,
+  "attribute_accuracy": 0.45,
+  "parse_failure_rate": 0.0,
+  "per_slot_accuracy": {
+    "anchor_size": 0.38,
+    "anchor_color": 0.42,
+    "anchor_shape": 0.55,
+    "rel1": 0.3,
+    "target1_size": 0.44,
+    "target1_color": 0.42,
+    "target1_shape": 0.5,
+    "rel2": 0.31,
+    "target2_size": 0.37,
+    "target2_color": 0.41,
+    "target2_shape": 0.56
+  },
+  "backend": "gemini",
+  "model": "gemini-3.1-flash-lite-preview"
+}
